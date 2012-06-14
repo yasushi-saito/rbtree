@@ -7,12 +7,14 @@ EXAMPLE
 
         More examples can be found in rbtree_test.go
 
+        import "github.com/yasushi-saito/rbtree"
+
 	type MyItem struct {
 		key   int
 		value string
 	}
 
-	tree := NewTree(func(a, b Item) int { return a.(MyItem).key - b.(MyItem).key })
+	tree := rbtree.NewTree(func(a, b Item) int { return a.(MyItem).key - b.(MyItem).key })
 	tree.Insert(MyItem{10, "value10"})
 	tree.Insert(MyItem{12, "value12"})
 
