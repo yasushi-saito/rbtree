@@ -332,6 +332,24 @@ func maxPredecessor(n *node) *node {
 // Private methods
 //
 
+func (root *Tree) recomputeMinNode() {
+	root.minNode = root.root
+	if root.minNode != nil {
+		for root.minNode.left != nil {
+			root.minNode = root.minNode.left
+		}
+	}
+}
+
+func (root *Tree) recomputeMaxNode() {
+	root.maxNode = root.root
+	if root.maxNode != nil {
+		for root.maxNode.right != nil {
+			root.maxNode = root.maxNode.right
+		}
+	}
+}
+
 func (root *Tree) maybeSetMinNode(n *node) {
 	if root.minNode == nil {
 		root.minNode = n
@@ -428,14 +446,6 @@ func (root *Tree) findGE(key Item) (*node, bool) {
 
 // Delete N from the tree.
 func (root *Tree) doDelete(n *node) {
-	if root.minNode == n {
-		root.minNode = nil
-	}
-	if root.maxNode == n {
-		root.maxNode = nil
-	}
-
-	root.count--
 	if n.left != nil && n.right != nil {
 		pred := maxPredecessor(n)
 		doAssert(pred != n)
@@ -511,22 +521,16 @@ func (root *Tree) doDelete(n *node) {
 	if n.parent == nil && child != nil {
 		child.color = black
 	}
-	if root.count > 0 {
-		if root.minNode == nil {
-			root.minNode = root.root
-			if root.minNode != nil {
-				for root.minNode.left != nil {
-					root.minNode = root.minNode.left
-				}
-			}
+	root.count--
+	if root.count == 0 {
+		root.minNode = nil
+		root.maxNode = nil
+	} else {
+		if root.minNode == n {
+			root.recomputeMinNode()
 		}
-		if root.maxNode == nil {
-			root.maxNode = root.root
-			if root.maxNode != nil {
-				for root.maxNode.right != nil {
-					root.maxNode = root.maxNode.right
-				}
-			}
+		if root.maxNode == n {
+			root.recomputeMaxNode()
 		}
 	}
 }
