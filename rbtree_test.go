@@ -335,7 +335,9 @@ func ExampleIntString() {
 
 	// Find an element >= 13
 	iter = tree.FindGE(MyItem{13, ""})
-	if !iter.End() { panic("There should be no element >= 13") }
+	if !iter.End() {
+		panic("There should be no element >= 13")
+	}
 
 	// Output:
 	// Get(10) -> {10 value10}

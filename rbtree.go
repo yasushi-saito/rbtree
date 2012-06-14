@@ -177,17 +177,23 @@ func (root *Tree) DeleteWithIterator(iter Iterator) {
 	root.doDelete(iter.node)
 }
 
+// Iterator allows scanning tree elements in sort order.
+//
+// Iterator invalidation rule is the same as C++ std::map<>'s. That
+// is, if you delete the element that an iterator points to, the
+// iterator becomes invalid. For other operation types, the iterator
+// remains valid.
 type Iterator struct {
 	root *Tree
 	node *node
 }
 
-// Check if the iterator points beyond the max element
+// Check if the iterator points beyond the max element in the tree
 func (iter Iterator) End() bool {
 	return iter.node == nil
 }
 
-// Check if the iterator points beyond the minimum element
+// Check if the iterator points to the minimum element in the tree
 func (iter Iterator) Begin() bool {
 	return iter.node == iter.root.minNode
 }
@@ -210,8 +216,7 @@ func (iter Iterator) Next() Iterator {
 }
 
 // Create a new iterator that points to the predecessor of the current
-// node.  If the original iterator already points to the minimum
-// element in the tree, the returned iterator becomes End.
+// node.
 //
 // REQUIRES: !iter.Begin()
 func (iter Iterator) Prev() Iterator {
@@ -431,13 +436,13 @@ func (root *Tree) doDelete(n *node) {
 	}
 
 	root.count--
-/*
-	if n.left != nil && n.right != nil {
-		pred := maxPredecessor(n)
-		n.item = pred.item
-		n = pred
-	}
-*/
+	/*
+		if n.left != nil && n.right != nil {
+			pred := maxPredecessor(n)
+			n.item = pred.item
+			n = pred
+		}
+	*/
 
 	if n.left != nil && n.right != nil {
 		pred := maxPredecessor(n)
@@ -447,7 +452,7 @@ func (root *Tree) doDelete(n *node) {
 		root.replaceNode(n, pred)
 		pred.color = n.color
 
-		if (tmp.parent == n) {
+		if tmp.parent == n {
 			// swap the positions of n and pred
 			if isLeft {
 				pred.left = n
