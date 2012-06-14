@@ -33,9 +33,7 @@ type Tree struct {
 
 // Create a new empty tree.
 func NewTree(compare CompareFunc) *Tree {
-	r := new(Tree)
-	r.compare = compare
-	return r
+	return &Tree{compare: compare}
 }
 
 // Return the number of elements in the tree.
@@ -54,18 +52,36 @@ func (root *Tree) Get(key Item) Item {
 }
 
 // Create an iterator that points to the minimum item in the tree
-func (root *Tree) Begin() Iterator {
+// If the tree is empty, return Limit()
+func (root *Tree) Min() Iterator {
 	return Iterator{root, root.minNode}
 }
 
+// Create an iterator that points at the maximum item in the tree
+//
+// If the tree is empty, return NegativeLimit()
+func (root *Tree) Max() Iterator {
+	if root.maxNode == nil {
+		// TODO: there are a few checks of this form.
+		// Perhaps set maxNode=negativeLimit when the tree is empty
+		return Iterator{root, negativeLimitNode}
+	}
+	return  Iterator{root, root.maxNode}
+}
+
 // Create an iterator that points beyond the maximum item in the tree
-func (root *Tree) End() Iterator {
+func (root *Tree) Limit() Iterator {
 	return Iterator{root, nil}
+}
+
+// Create an iterator that points before the minimum item in the tree
+func (root *Tree) NegativeLimit() Iterator {
+	return  Iterator{root, negativeLimitNode}
 }
 
 // Find the smallest element N such that N >= key, and return the
 // iterator pointing to the element. If no such element is found,
-// iter.End() becomes true.
+// return root.Limit().
 func (root *Tree) FindGE(key Item) Iterator {
 	n, _ := root.findGE(key)
 	return Iterator{root, n}
@@ -73,24 +89,19 @@ func (root *Tree) FindGE(key Item) Iterator {
 
 // Find the largest element N such that N <= key, and return the
 // iterator pointing to the element. If no such element is found,
-// iter.End() becomes true.
+// return iter.NegativeLimit().
 func (root *Tree) FindLE(key Item) Iterator {
 	n, exact := root.findGE(key)
 	if exact {
 		return Iterator{root, n}
 	}
 	if n != nil {
-		return Iterator{root, n.prev()}
+		return Iterator{root, n.doPrev()}
 	}
-	// return the max element
-	n = root.root
-	if n == nil {
-		return Iterator{root, nil}
+	if root.maxNode == nil {
+		return Iterator{root, negativeLimitNode}
 	}
-	for n.right != nil {
-		n = n.right
-	}
-	return Iterator{root, n}
+	return Iterator{root, root.maxNode}
 }
 
 // Insert an item. If the item is already in the tree, do nothing and
@@ -172,9 +183,9 @@ func (root *Tree) DeleteWithKey(key Item) bool {
 
 // Delete the current item.
 //
-// REQUIRES: !iter.End()
+// REQUIRES: !iter.Limit() && !iter.NegativeLimit()
 func (root *Tree) DeleteWithIterator(iter Iterator) {
-	doAssert(!iter.End())
+	doAssert(!iter.Limit() && !iter.NegativeLimit())
 	root.doDelete(iter.node)
 }
 
@@ -189,44 +200,61 @@ type Iterator struct {
 	node *node
 }
 
+func (iter Iterator) Equal(iter2 Iterator) bool {
+	return iter.node == iter2.node
+}
+
 // Check if the iterator points beyond the max element in the tree
-func (iter Iterator) End() bool {
+func (iter Iterator) Limit() bool {
 	return iter.node == nil
 }
 
 // Check if the iterator points to the minimum element in the tree
-func (iter Iterator) Begin() bool {
+func (iter Iterator) Min() bool {
 	return iter.node == iter.root.minNode
+}
+
+// Check if the iterator points to the maximum element in the tree
+func (iter Iterator) Max() bool {
+	return iter.node == iter.root.maxNode
+}
+
+// Check if the iterator points before the minumum element in the tree
+func (iter Iterator) NegativeLimit() bool {
+	return iter.node == negativeLimitNode
 }
 
 // Return the current element.
 //
-// REQUIRES: !iter.End()
+// REQUIRES: !iter.Limit() && !iter.NegativeLimit()
 func (iter Iterator) Item() interface{} {
 	return iter.node.item
 }
 
-// Create a new iterator that points to the successor of the current node.
-// If the original iterator already points to the maximum
-// element in the tree, the returned iterator becomes End.
+// Create a new iterator that points to the successor of the current element.
 //
-// REQUIRES: !iter.End()
+// REQUIRES: !iter.Limit()
 func (iter Iterator) Next() Iterator {
-	doAssert(!iter.End())
-	return Iterator{iter.root, iter.node.next()}
+	doAssert(!iter.Limit())
+	if iter.NegativeLimit() {
+		return Iterator{iter.root, iter.root.minNode}
+	}
+	return Iterator{iter.root, iter.node.doNext()}
 }
 
 // Create a new iterator that points to the predecessor of the current
 // node.
 //
-// REQUIRES: !iter.Begin()
+// REQUIRES: !iter.NegativeLimit()
 func (iter Iterator) Prev() Iterator {
-	doAssert(!iter.Begin())
-	if iter.End() {
-		doAssert(iter.root.Len() > 0)
-		return Iterator{iter.root, iter.root.maxNode}
+	doAssert(!iter.NegativeLimit())
+	if !iter.Limit() {
+		return Iterator{iter.root, iter.node.doPrev()}
 	}
-	return Iterator{iter.root, iter.node.prev()}
+	if iter.root.maxNode == nil {
+		return Iterator{iter.root, negativeLimitNode}
+	}
+	return Iterator{iter.root, iter.root.maxNode}
 }
 
 func doAssert(b bool) {
@@ -243,6 +271,8 @@ type node struct {
 	parent, left, right *node
 	color               int // black or red
 }
+
+var negativeLimitNode *node
 
 //
 // Internal node attribute accessors
@@ -272,7 +302,7 @@ func (n *node) sibling() *node {
 
 // Return the minimum node that's larger than N. Return nil if no such
 // node is found.
-func (n *node) next() *node {
+func (n *node) doNext() *node {
 	if n.right != nil {
 		m := n.right
 		for m.left != nil {
@@ -296,7 +326,7 @@ func (n *node) next() *node {
 
 // Return the maximum node that's smaller than N. Return nil if no
 // such node is found.
-func (n *node) prev() *node {
+func (n *node) doPrev() *node {
 	if n.left != nil {
 		return maxPredecessor(n)
 	}
@@ -304,14 +334,14 @@ func (n *node) prev() *node {
 	for n != nil {
 		p := n.parent
 		if p == nil {
-			return nil
+			break
 		}
 		if n.isRightChild() {
 			return p
 		}
 		n = p
 	}
-	return nil
+	return negativeLimitNode
 }
 
 // Return the predecessor of "n".
@@ -431,7 +461,7 @@ func (root *Tree) findGE(key Item) (*node, bool) {
 			if n.right != nil {
 				n = n.right
 			} else {
-				succ := n.next()
+				succ := n.doNext()
 				if succ == nil {
 					return nil, false
 				} else {
@@ -676,4 +706,8 @@ func (root *Tree) rotateRight(y *node) {
 	}
 	x.right = y
 	y.parent = x
+}
+
+func init() {
+	negativeLimitNode = &node{}
 }

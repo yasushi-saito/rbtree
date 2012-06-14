@@ -19,44 +19,31 @@ func testNewIntSet() *Tree {
 	})
 }
 
+func testAssert(t *testing.T, b bool, message string) {
+	if !b {
+		t.Fatal(message)
+	}
+}
+
 func TestEmpty(t *testing.T) {
 	tree := testNewIntSet()
-	if tree.Len() != 0 {
-		t.Error("Len!=0")
-	}
-	if !tree.FindGE(10).End() {
-		t.Error("Not empty")
-	}
-	if !tree.FindLE(10).End() {
-		t.Error("Not empty")
-	}
-	if tree.Get(10) != nil {
-		t.Error("Not empty")
-	}
+	testAssert(t, tree.Len() == 0, "len!=0")
+	testAssert(t, tree.Max().NegativeLimit(), "neglimit")
+	testAssert(t, tree.Min().Limit(), "limit")
+	testAssert(t, tree.FindGE(10).Limit(), "Not empty")
+	testAssert(t, tree.FindLE(10).NegativeLimit(), "Not empty")
+	testAssert(t, tree.Get(10) == nil, "Not empty")
+	testAssert(t, tree.Limit().Equal(tree.Min()), "iter")
 }
 
 func TestFindGE(t *testing.T) {
 	tree := testNewIntSet()
-	if !tree.Insert(10) {
-		t.Error("Insert1")
-	}
-	if tree.Insert(10) {
-		t.Error("Insert2")
-	}
-
-	if tree.Len() != 1 {
-		t.Error("Len!=1")
-	}
-
-	if tree.FindGE(10).Item().(int) != 10 {
-		t.Error("FindGE 10")
-	}
-	if !tree.FindGE(11).End() {
-		t.Error("FindGE 11")
-	}
-	if tree.FindGE(9).Item().(int) != 10 {
-		t.Error("FindGE 9")
-	}
+	testAssert(t, tree.Insert(10), "Insert1")
+	testAssert(t, !tree.Insert(10), "Insert2")
+	testAssert(t, tree.Len() == 1, "len==1")
+	testAssert(t, tree.FindGE(10).Item().(int) == 10, "FindGE 10")
+	testAssert(t, tree.FindGE(11).Limit(), "FindGE 11")
+	testAssert(t, tree.FindGE(9).Item().(int) == 10, "FindGE 10")
 }
 
 func TestFindLE(t *testing.T) {
@@ -70,7 +57,7 @@ func TestFindLE(t *testing.T) {
 	if tree.FindLE(11).Item().(int) != 10 {
 		t.Error("FindLE 11")
 	}
-	if !tree.FindLE(9).End() {
+	if !tree.FindLE(9).NegativeLimit() {
 		t.Error("FindLE 9")
 	}
 }
@@ -108,6 +95,56 @@ func TestDelete(t *testing.T) {
 	}
 	if tree.Len() != 0 {
 		t.Error()
+	}
+}
+
+func iterToString(i Iterator) string {
+	s := ""
+	for ; !i.Limit(); i = i.Next() {
+		if s != "" { s = s + ","}
+		s = s + fmt.Sprintf("%d", i.Item().(int))
+	}
+	return s
+}
+
+func reverseIterToString(i Iterator) string {
+	s := ""
+	for ; !i.NegativeLimit(); i = i.Prev() {
+		if s != "" { s = s + ","}
+		s = s + fmt.Sprintf("%d", i.Item().(int))
+	}
+	return s
+}
+
+func TestIterator(t *testing.T) {
+	tree := testNewIntSet()
+	for i := 0; i < 10; i = i + 2 {
+		tree.Insert(i)
+	}
+	if iterToString(tree.FindGE(3)) != "4,6,8" {
+		t.Error("iter")
+	}
+	if iterToString(tree.FindGE(4)) != "4,6,8" {
+		t.Error("iter")
+	}
+	if iterToString(tree.FindGE(8)) != "8" {
+		t.Error("iter")
+	}
+	if iterToString(tree.FindGE(9)) != "" {
+		t.Error("iter")
+	}
+
+	if reverseIterToString(tree.FindLE(3)) != "2,0" {
+		t.Error("iter", reverseIterToString(tree.FindLE(3)))
+	}
+	if reverseIterToString(tree.FindLE(2)) != "2,0" {
+		t.Error("iter")
+	}
+	if reverseIterToString(tree.FindLE(0)) != "0" {
+		t.Error("iter")
+	}
+	if reverseIterToString(tree.FindLE(-1)) != "" {
+		t.Error("iter")
 	}
 }
 
@@ -176,10 +213,8 @@ func (o *oracle) FindGE(t *testing.T, key int) oracleIterator {
 
 func (o *oracle) FindLE(t *testing.T, key int) oracleIterator {
 	iter := o.FindGE(t, key)
-	if !iter.End() && o.data[iter.index] == key {
+	if !iter.Limit() && o.data[iter.index] == key {
 		return iter
-	} else if iter.index == 0 {
-		return oracleIterator{o, len(o.data)}
 	}
 	return oracleIterator{o, iter.index - 1}
 }
@@ -205,12 +240,20 @@ type oracleIterator struct {
 	index int
 }
 
-func (oiter oracleIterator) End() bool {
+func (oiter oracleIterator) Limit() bool {
 	return oiter.index >= len(oiter.o.data)
 }
 
-func (oiter oracleIterator) Begin() bool {
+func (oiter oracleIterator) Min() bool {
 	return oiter.index == 0
+}
+
+func (oiter oracleIterator) NegativeLimit() bool {
+	return oiter.index < 0
+}
+
+func (oiter oracleIterator) Max() bool {
+	return oiter.index == len(oiter.o.data) - 1
 }
 
 func (oiter oracleIterator) Item() int {
@@ -230,7 +273,13 @@ func compareContents(t *testing.T, oiter oracleIterator, titer Iterator) {
 	ti := titer
 
 	// Test forward iteration
-	for !oi.End() && !ti.End() {
+	testAssert(t, oi.NegativeLimit() == ti.NegativeLimit(), "rend")
+	if oi.NegativeLimit() {
+		oi = oi.Next()
+		ti = ti.Next()
+	}
+
+	for !oi.Limit() && !ti.Limit() {
 		// log.Print("Item: ", oi.Item(), ti.Item())
 		if ti.Item().(int) != oi.Item() {
 			t.Fatal("Wrong item", ti.Item(), oi.Item())
@@ -238,35 +287,39 @@ func compareContents(t *testing.T, oiter oracleIterator, titer Iterator) {
 		oi = oi.Next()
 		ti = ti.Next()
 	}
-	if !ti.End() {
+	if !ti.Limit() {
 		t.Fatal("!ti.done", ti.Item())
 	}
-	if !oi.End() {
+	if !oi.Limit() {
 		t.Fatal("!oi.done", oi.Item())
 	}
 
 	// Test reverse iteration
 	oi = oiter
 	ti = titer
-	for !oi.Begin() && !ti.Begin() {
-		if oi.End() {
-			if !ti.End() {
-				t.Fatal("End")
-			}
-		} else {
-			if ti.Item().(int) != oi.Item() {
-				t.Fatal("Wrong item", ti.Item(), oi.Item())
-			}
+	testAssert(t, oi.Limit() == ti.Limit(), "end")
+	if oi.Limit() {
+		oi = oi.Prev()
+		ti = ti.Prev()
+	}
+
+	for !oi.NegativeLimit() && !ti.NegativeLimit() {
+		if ti.Item().(int) != oi.Item() {
+			t.Fatal("Wrong item", ti.Item(), oi.Item())
 		}
 		oi = oi.Prev()
 		ti = ti.Prev()
 	}
-	if !ti.Begin() {
+	if !ti.NegativeLimit() {
 		t.Fatal("!ti.done", ti.Item())
 	}
-	if !oi.Begin() {
+	if !oi.NegativeLimit() {
 		t.Fatal("!oi.done", oi.Item())
 	}
+}
+
+func compareContentsFull(t *testing.T, o *oracle, tree *Tree) {
+	compareContents(t, o.FindGE(t, int(-1)), tree.FindGE(-1))
 }
 
 func TestRandomized(t *testing.T) {
@@ -284,8 +337,7 @@ func TestRandomized(t *testing.T) {
 			}
 			o.Insert(key)
 			tree.Insert(key)
-
-			compareContents(t, o.FindGE(t, int(-1)), tree.FindGE(-1))
+			compareContentsFull(t, o, tree)
 		} else if op < 90 && o.Len() > 0 {
 			key := o.RandomExistingKey(r)
 			if testVerbose {
@@ -295,7 +347,7 @@ func TestRandomized(t *testing.T) {
 			if !tree.DeleteWithKey(key) {
 				t.Fatal("DeleteExisting", key)
 			}
-			compareContents(t, o.FindGE(t, int(-1)), tree.FindGE(-1))
+			compareContentsFull(t, o, tree)
 		} else if op < 95 {
 			key := int(r.Intn(numKeys))
 			if testVerbose {
@@ -335,7 +387,7 @@ func ExampleIntString() {
 
 	// Find an element >= 13
 	iter = tree.FindGE(MyItem{13, ""})
-	if !iter.End() {
+	if !iter.Limit() {
 		panic("There should be no element >= 13")
 	}
 
