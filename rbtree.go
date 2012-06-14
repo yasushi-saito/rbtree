@@ -20,8 +20,13 @@ type Item interface{}
 type CompareFunc func(a, b Item) int
 
 type Tree struct {
+	// Root of the tree
 	root             *node
+
+	// The minimum and maximum nodes under the root.
 	minNode, maxNode *node
+
+	// Number of nodes under root, including the root
 	count            int
 	compare          CompareFunc
 }
@@ -38,7 +43,7 @@ func (root *Tree) Len() int {
 	return root.count
 }
 
-// A convenience function for find the element equal to key. Return
+// A convenience function for finding an element equal to key. Return
 // nil if not found.
 func (root *Tree) Get(key Item) Item {
 	n, exact := root.findGE(key)
@@ -91,13 +96,9 @@ func (root *Tree) FindLE(key Item) Iterator {
 // Insert an item. If the item is already in the tree, do nothing and
 // return false. Else return true.
 func (root *Tree) Insert(item Item) bool {
-	n := new(node)
-	n.item = item
-	n.color = red
-
 	// TODO: delay creating n until it is found to be inserted
-	inserted := root.doInsert(n)
-	if !inserted {
+	n := root.doInsert(item)
+	if n == nil {
 		return false
 	}
 
@@ -349,37 +350,39 @@ func (root *Tree) maybeSetMaxNode(n *node) {
 	}
 }
 
-func (root *Tree) doInsert(n *node) bool {
+// Try inserting "item" into the tree. Return nil if the item is
+// already in the tree. Otherwise return a new (leaf) node.
+func (root *Tree) doInsert(item Item) *node {
 	if root.root == nil {
-		n.parent = nil
+		n := &node{item: item}
 		root.root = n
 		root.minNode = n
 		root.maxNode = n
 		root.count++
-		return true
+		return n
 	}
 	parent := root.root
 	for true {
-		comp := root.compare(n.item, parent.item)
+		comp := root.compare(item, parent.item)
 		if comp == 0 {
-			return false
+			return nil
 		} else if comp < 0 {
 			if parent.left == nil {
-				n.parent = parent
+				n := &node{item: item, parent: parent}
 				parent.left = n
 				root.count++
 				root.maybeSetMinNode(n)
-				return true
+				return n
 			} else {
 				parent = parent.left
 			}
 		} else {
 			if parent.right == nil {
-				n.parent = parent
+				n := &node{item: item, parent: parent}
 				parent.right = n
 				root.count++
 				root.maybeSetMaxNode(n)
-				return true
+				return n
 			} else {
 				parent = parent.right
 			}
@@ -424,9 +427,6 @@ func (root *Tree) findGE(key Item) (*node, bool) {
 }
 
 // Delete N from the tree.
-///The algorithm is largely stoler from
-//
-// http://en.literateprograms.org/red-black_tree_(C)#chunk use:private function prototypes
 func (root *Tree) doDelete(n *node) {
 	if root.minNode == n {
 		root.minNode = nil
@@ -436,14 +436,6 @@ func (root *Tree) doDelete(n *node) {
 	}
 
 	root.count--
-	/*
-		if n.left != nil && n.right != nil {
-			pred := maxPredecessor(n)
-			n.item = pred.item
-			n = pred
-		}
-	*/
-
 	if n.left != nil && n.right != nil {
 		pred := maxPredecessor(n)
 		doAssert(pred != n)
