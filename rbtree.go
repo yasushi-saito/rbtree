@@ -7,33 +7,6 @@
 // The implementation is inspired (read: stolen) from:
 // http://en.literateprograms.org/Red-black_tree_(C)#chunk use:private function prototypes.
 //
-// A simple example is shown below. For more examples, see rbtree_test.go
-//
-// type MyItem struct {
-// 	key   int
-// 	value string
-// }
-//
-// tree := NewTree(func(a, b Item) int { return a.(MyItem).key - b.(MyItem).key })
-// tree.Insert(MyItem{10, "value10"})
-// tree.Insert(MyItem{12, "value12"})
-//
-// fmt.Println("Get(10) ->", tree.Get(MyItem{10, ""}))
-// fmt.Println("Get(11) ->", tree.Get(MyItem{11, ""}))
-//
-// // Find an element >= 11
-// iter := tree.FindGE(MyItem{11, ""})
-// fmt.Println("FindGE(11) ->", iter.Item())
-//
-// // Find an element >= 13
-// iter = tree.FindGE(MyItem{13, ""})
-// if !iter.End() { panic("There should be no element >= 13") }
-//
-// // Output:
-// // Get(10) -> {10 value10}
-// // Get(11) -> <nil>
-// // FindGE(11) -> {12 value12}
-//
 package rbtree
 
 //
