@@ -48,54 +48,27 @@ func TestFindGE(t *testing.T) {
 
 func TestFindLE(t *testing.T) {
 	tree := testNewIntSet()
-	if !tree.Insert(10) {
-		t.Error("Insert1")
-	}
-	if tree.FindLE(10).Item().(int) != 10 {
-		t.Error("FindLE 10")
-	}
-	if tree.FindLE(11).Item().(int) != 10 {
-		t.Error("FindLE 11")
-	}
-	if !tree.FindLE(9).NegativeLimit() {
-		t.Error("FindLE 9")
-	}
+	testAssert(t, tree.Insert(10), "insert1")
+	testAssert(t, tree.FindLE(10).Item().(int) == 10, "FindLE 10")
+	testAssert(t, tree.FindLE(11).Item().(int) == 10, "FindLE 11")
+	testAssert(t, tree.FindLE(9).NegativeLimit(), "FindLE 9")
 }
 
 func TestGet(t *testing.T) {
 	tree := testNewIntSet()
-	if !tree.Insert(10) {
-		t.Error("Insert1")
-	}
-	if tree.Get(10).(int) != 10 {
-		t.Error("Get 10")
-	}
-	if tree.Get(9) != nil {
-		t.Error("Get 9")
-	}
-	if tree.Get(11) != nil {
-		t.Error("Get 11")
-	}
+	testAssert(t, tree.Insert(10), "insert1")
+	testAssert(t, tree.Get(10).(int) == 10, "Get 10")
+	testAssert(t, tree.Get(9) == nil, "Get 9")
+	testAssert(t, tree.Get(11) == nil, "Get 11")
 }
 
 func TestDelete(t *testing.T) {
 	tree := testNewIntSet()
-	if tree.DeleteWithKey(10) {
-		t.Error()
-	}
-	if tree.Len() != 0 {
-		t.Error()
-	}
-
-	if !tree.Insert(10) {
-		t.Error()
-	}
-	if !tree.DeleteWithKey(10) {
-		t.Error()
-	}
-	if tree.Len() != 0 {
-		t.Error()
-	}
+	testAssert(t, !tree.DeleteWithKey(10), "del")
+	testAssert(t, tree.Len() == 0, "dellen")
+	testAssert(t, tree.Insert(10), "ins")
+	testAssert(t, tree.DeleteWithKey(10), "del")
+	testAssert(t, tree.Len() == 0, "dellen")
 }
 
 func iterToString(i Iterator) string {
