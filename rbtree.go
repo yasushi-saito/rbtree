@@ -173,9 +173,9 @@ func (root *Tree) Insert(item Item) bool {
 // Delete an item with the given key. Return true iff the item was
 // found.
 func (root *Tree) DeleteWithKey(key Item) bool {
-	iter := root.FindGE(key)
-	if iter.node != nil {
-		root.DeleteWithIterator(iter)
+	n, exact := root.findGE(key)
+	if exact {
+		root.doDelete(n)
 		return true
 	}
 	return false
