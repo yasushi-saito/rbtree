@@ -14,7 +14,6 @@ import (
 	"strings"
 )
 
-var _ = fmt.Printf
 var verb bool
 
 //
@@ -112,8 +111,6 @@ func (root *Tree) FindLE(key Item) Iterator {
 	return Iterator{root, root.maxNode}
 }
 
-var insCount int = 0
-
 func getGU(n *node) (grandparent, uncle *node) {
 	grandparent = n.parent.parent
 	if n.parent.isLeftChild() {
@@ -127,7 +124,6 @@ func getGU(n *node) (grandparent, uncle *node) {
 // Insert an item. If the item is already in the tree, do nothing and
 // return false. Else return true.
 func (root *Tree) Insert(item Item) bool {
-	insCount++
 
 	// TODO: delay creating n until it is found to be inserted
 	n := root.doInsert(item)
@@ -215,7 +211,6 @@ func (root *Tree) DeleteWithIterator(iter Iterator) {
 	if iter.root != root {
 		panic("DeleteWithIterator called with iterator not from this tree.")
 	}
-	//fmt.Printf("\nrbtree.DeleteWithIterator called, at insCount=%v, on item='%#v'\n", insCount, iter.Item())
 	doAssert(!iter.Limit() && !iter.NegativeLimit())
 	root.doDelete(iter.node)
 }
