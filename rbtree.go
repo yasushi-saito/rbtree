@@ -9,6 +9,14 @@
 //
 package rbtree
 
+import (
+	"fmt"
+	"strings"
+)
+
+var _ = fmt.Printf
+var verb bool
+
 //
 // Public definitions
 //
@@ -21,14 +29,14 @@ type CompareFunc func(a, b Item) int
 
 type Tree struct {
 	// Root of the tree
-	root             *node
+	root *node
 
 	// The minimum and maximum nodes under the root.
 	minNode, maxNode *node
 
 	// Number of nodes under root, including the root
-	count            int
-	compare          CompareFunc
+	count   int
+	compare CompareFunc
 }
 
 // Create a new empty tree.
@@ -66,7 +74,7 @@ func (root *Tree) Max() Iterator {
 		// Perhaps set maxNode=negativeLimit when the tree is empty
 		return Iterator{root, negativeLimitNode}
 	}
-	return  Iterator{root, root.maxNode}
+	return Iterator{root, root.maxNode}
 }
 
 // Create an iterator that points beyond the maximum item in the tree
@@ -76,7 +84,7 @@ func (root *Tree) Limit() Iterator {
 
 // Create an iterator that points before the minimum item in the tree
 func (root *Tree) NegativeLimit() Iterator {
-	return  Iterator{root, negativeLimitNode}
+	return Iterator{root, negativeLimitNode}
 }
 
 // Find the smallest element N such that N >= key, and return the
@@ -104,18 +112,44 @@ func (root *Tree) FindLE(key Item) Iterator {
 	return Iterator{root, root.maxNode}
 }
 
+var insCount int = 0
+
+func getGU(n *node) (grandparent, uncle *node) {
+	grandparent = n.parent.parent
+	if 102825 == insCount {
+		fmt.Printf("\n\n getGU at 102825, grandparent item='%#v'. n.item='%#v'    grandparent.left=%#v, grandparent.right=%#v\n\n", grandparent.item, n.item, grandparent.left, grandparent.right)
+		fmt.Printf("\n\n... more getGU at 102825, parent item='%#v'    parent.left=%#v, parent.right=%#v\n\n", n.parent.item, n.parent.left.item, n.parent.right)
+	}
+	if n.parent.isLeftChild() {
+		uncle = grandparent.right
+	} else {
+		uncle = grandparent.left
+	}
+	return
+}
+
 // Insert an item. If the item is already in the tree, do nothing and
 // return false. Else return true.
 func (root *Tree) Insert(item Item) bool {
+	insCount++
+
+	if 102825 == insCount || 102824 == insCount {
+		validateTree(root)
+		//fmt.Printf("at %v, tree validated before inserting new item %#v\n", insCount, item)
+		//root.Dump()
+	}
 	// TODO: delay creating n until it is found to be inserted
 	n := root.doInsert(item)
+	validateTree(root)
 	if n == nil {
 		return false
 	}
 
 	n.color = red
+	var uncle, grandparent *node
+	for {
+		nilUncle := false
 
-	for true {
 		// Case 1: N is at the root
 		if n.parent == nil {
 			n.color = black
@@ -130,40 +164,77 @@ func (root *Tree) Insert(item Item) bool {
 
 		// Case 3: parent and uncle are both red.
 		// Then paint both black and make grandparent red.
-		grandparent := n.parent.parent
-		var uncle *node
-		if n.parent.isLeftChild() {
-			uncle = grandparent.right
-		} else {
-			uncle = grandparent.left
-		}
+		validateTree(root)
+		grandparent, uncle = getGU(n)
+		validateTree(root)
+
+		nilUncle = (uncle == nil)
+
 		if uncle != nil && uncle.color == red {
 			n.parent.color = black
 			uncle.color = black
 			grandparent.color = red
 			n = grandparent
+			validateTree(root)
+
 			continue
+		}
+		validateTree(root)
+
+		if 102825 == insCount {
+
+			fmt.Printf("top of case 4, nilUncle = %v for n='%#v' and n.item='%#v'\n", nilUncle, n, n.item)
+			fmt.Printf("case 4: n.isRightChild() = %v, n.parent.isRightChild() = %v\n", n.isRightChild(), n.parent.isRightChild())
+			fmt.Printf("case 4: n.isLeftChild() = %v, n.parent.isRightChild() = %v\n", n.isLeftChild(), n.parent.isRightChild())
 		}
 
 		// Case 4: parent is red, uncle is black (1)
 		if n.isRightChild() && n.parent.isLeftChild() {
+			if 102825 == insCount {
+				fmt.Printf("doing case 4: rotateLeft(n.parent)\n")
+			}
 			root.rotateLeft(n.parent)
+			validateTree(root)
+
 			n = n.left
-			continue
-		}
-		if n.isLeftChild() && n.parent.isRightChild() {
-			root.rotateRight(n.parent)
-			n = n.right
-			continue
+			grandparent, uncle = getGU(n)
+			//continue
+		} else {
+			if 102825 == insCount {
+				fmt.Printf("on 102825, case 4 else after first test false\n")
+			}
+			if n.isLeftChild() && n.parent.isRightChild() {
+				if 102825 == insCount {
+					fmt.Printf("doing case 4: rotateRight(n.parent)\n")
+				}
+				root.rotateRight(n.parent)
+				validateTree(root)
+				n = n.right
+				grandparent, uncle = getGU(n)
+				//continue
+			}
 		}
 
-		// Case 5: parent is read, uncle is black (2)
+		nilUncle = (uncle == nil)
+
+		// Case 5: parent is red, uncle is black (2)
 		n.parent.color = black
 		grandparent.color = red
-		if n.isLeftChild() {
+
+		if n.isLeftChild() && n.parent.isLeftChild() {
 			root.rotateRight(grandparent)
+			validateTree(root)
 		} else {
-			root.rotateLeft(grandparent)
+			if n.isRightChild() && n.parent.isRightChild() {
+				root.rotateLeft(grandparent)
+				validateTree(root)
+			} else {
+				fmt.Printf("n.isRightChild() = %v, n.parent.isRightChild() = %v\n", n.isRightChild(), n.parent.isRightChild())
+				fmt.Printf("n.isLeftChild() = %v, n.parent.isLeftChild() = %v\n", n.isLeftChild(), n.parent.isLeftChild())
+				// n.isRightChild() = false, n.parent.isRightChild() = false
+				root.Dump()
+				panic(fmt.Sprintf("assertion fails: should not get here. validations=%v,  insCount=%v, nilUncle=%v. new item is '%#v', but n has changed so that n.item = '%#v', with uncle on left:'%#v', and with uncle on right:'%#v', and grandparent.item='%#v'", validations, insCount, nilUncle, item, n.item, n.parent.parent.left, n.parent.parent.right, n.parent.parent.item))
+			}
 		}
 		break
 	}
@@ -185,6 +256,7 @@ func (root *Tree) DeleteWithKey(key Item) bool {
 //
 // REQUIRES: !iter.Limit() && !iter.NegativeLimit()
 func (root *Tree) DeleteWithIterator(iter Iterator) {
+	fmt.Printf("\nrbtree.DeleteWithIterator called, at insCount=%v, on item='%#v'\n", insCount, iter.Item())
 	doAssert(!iter.Limit() && !iter.NegativeLimit())
 	root.doDelete(iter.node)
 }
@@ -474,7 +546,6 @@ func (root *Tree) findGE(key Item) (*node, bool) {
 	panic("should not reach here")
 }
 
-
 // Delete N from the tree.
 func (root *Tree) doDelete(n *node) {
 	if n.left != nil && n.right != nil {
@@ -644,7 +715,7 @@ func (root *Tree) replaceNode(oldn, newn *node) {
 	if oldn.parent == nil {
 		root.root = newn
 	} else {
-		if oldn == oldn.parent.left {
+		if oldn.isLeftChild() {
 			oldn.parent.left = newn
 		} else {
 			oldn.parent.right = newn
@@ -657,27 +728,42 @@ func (root *Tree) replaceNode(oldn, newn *node) {
 
 /*
     X		     Y
-  A   Y	    =>     X   C
+  A   Y	    => X   C
      B C 	  A B
 */
-func (root *Tree) rotateLeft(x *node) {
-	y := x.right
-	x.right = y.left
-	if y.left != nil {
-		y.left.parent = x
+func (root *Tree) rotateLeft(n *node) {
+	r := n.right
+	root.replaceNode(n, r)
+	n.right = r.left
+	if r.left != nil {
+		r.left.parent = n
 	}
-	y.parent = x.parent
-	if x.parent == nil {
-		root.root = y
-	} else {
-		if x.isLeftChild() {
-			x.parent.left = y
-		} else {
-			x.parent.right = y
+	r.left = n
+	n.parent = r
+
+	/*
+		y := x.right
+		if y == nil {
+			root.Dump()
+			panic("about to crash b/c y is nil")
 		}
-	}
-	y.left = x
-	x.parent = y
+		x.right = y.left
+		if y.left != nil {
+			y.left.parent = x
+		}
+		y.parent = x.parent
+		if x.parent == nil {
+			root.root = y
+		} else {
+			if x.isLeftChild() {
+				x.parent.left = y
+			} else {
+				x.parent.right = y
+			}
+		}
+		y.left = x
+		x.parent = y
+	*/
 }
 
 /*
@@ -685,29 +771,113 @@ func (root *Tree) rotateLeft(x *node) {
    X   C  =>   A   Y
   A B             B C
 */
-func (root *Tree) rotateRight(y *node) {
-	x := y.left
-
-	// Move "B"
-	y.left = x.right
-	if x.right != nil {
-		x.right.parent = y
+func (root *Tree) rotateRight(n *node) {
+	L := n.left
+	root.replaceNode(n, L)
+	n.left = L.right
+	if L.right != nil {
+		L.right.parent = n
 	}
-
-	x.parent = y.parent
-	if y.parent == nil {
-		root.root = x
-	} else {
-		if y.isLeftChild() {
-			y.parent.left = x
-		} else {
-			y.parent.right = x
-		}
-	}
-	x.right = y
-	y.parent = x
+	L.right = n
+	n.parent = L
 }
 
 func init() {
 	negativeLimitNode = &node{}
+}
+
+func (root *Tree) Dump() {
+	i := 0
+	verb = true
+	for it := root.Min(); it != root.Limit(); it = it.Next() {
+		fmt.Printf("node %03d: %#v\n", i, it.Item())
+		i++
+	}
+	n := root.root
+	for n.parent != nil {
+		n = n.parent
+	}
+
+	root.Walk(n, 0, "root")
+}
+
+func colorString(n *node) string {
+	if n.color == red {
+		return "red"
+	}
+	return "black"
+}
+
+func (tr *Tree) Walk(n *node, indent int, lab string) {
+
+	spc := strings.Repeat(" ", indent*3)
+	var parItem, leftItem, rightItem interface{}
+	if n.parent != nil {
+		parItem = n.parent.item
+	}
+	if n.left != nil {
+		leftItem = n.left.item
+	}
+	if n.right != nil {
+		rightItem = n.right.item
+	}
+	fmt.Printf("%s %s node %p at indent %v [%s] %#v   leftChildNil:%v rightChildNil:%v.  my parent:'%#v'.  my left:'%#v', my right:'%#v'\n", spc, lab, n, indent, colorString(n), n.item, n.left == nil, n.right == nil, parItem, leftItem, rightItem)
+
+	if n.left != nil {
+		if n.left.parent != n {
+			panic("n.left.parent != n")
+		}
+		tr.Walk(n.left, indent+1, "left")
+	}
+
+	if n.right != nil {
+		if n.right.parent != n {
+			panic("n.right.parent != n")
+		}
+		tr.Walk(n.right, indent+1, "right")
+	}
+
+	if n.color == red && n.parent.color == red {
+		panic("double red chain found")
+	}
+}
+
+var validations int
+
+func validateTree(tr *Tree) {
+	if tr == nil {
+		panic("can't validate a nil tree")
+	}
+	root := tr.root
+	if root == nil {
+		return
+	}
+	for root.parent != nil {
+		//vv("validateTree warning, not passed the root.")
+		root = root.parent
+	}
+	tr.validateTreeHelper(root)
+	//fmt.Printf("\n tree validated\n")
+	validations++
+}
+
+func (tr *Tree) validateTreeHelper(n *node) {
+
+	if n.parent != nil {
+		if n.parent.left != n && n.parent.right != n {
+			panic("my parent doesn't know me")
+		}
+	}
+	if n.left != nil {
+		if n.left.parent != n {
+			panic("my child doesn't know me")
+		}
+		tr.validateTreeHelper(n.left)
+	}
+	if n.right != nil {
+		if n.right.parent != n {
+			panic("my child doesn't know me")
+		}
+		tr.validateTreeHelper(n.right)
+	}
 }
