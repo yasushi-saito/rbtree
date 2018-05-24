@@ -116,10 +116,6 @@ var insCount int = 0
 
 func getGU(n *node) (grandparent, uncle *node) {
 	grandparent = n.parent.parent
-	if 102825 == insCount {
-		fmt.Printf("\n\n getGU at 102825, grandparent item='%#v'. n.item='%#v'    grandparent.left=%#v, grandparent.right=%#v\n\n", grandparent.item, n.item, grandparent.left, grandparent.right)
-		fmt.Printf("\n\n... more getGU at 102825, parent item='%#v'    parent.left=%#v, parent.right=%#v\n\n", n.parent.item, n.parent.left.item, n.parent.right)
-	}
 	if n.parent.isLeftChild() {
 		uncle = grandparent.right
 	} else {
@@ -133,14 +129,8 @@ func getGU(n *node) (grandparent, uncle *node) {
 func (root *Tree) Insert(item Item) bool {
 	insCount++
 
-	if 102825 == insCount || 102824 == insCount {
-		validateTree(root)
-		//fmt.Printf("at %v, tree validated before inserting new item %#v\n", insCount, item)
-		//root.Dump()
-	}
 	// TODO: delay creating n until it is found to be inserted
 	n := root.doInsert(item)
-	validateTree(root)
 	if n == nil {
 		return false
 	}
@@ -148,7 +138,6 @@ func (root *Tree) Insert(item Item) bool {
 	n.color = red
 	var uncle, grandparent *node
 	for {
-		nilUncle := false
 
 		// Case 1: N is at the root
 		if n.parent == nil {
@@ -164,58 +153,31 @@ func (root *Tree) Insert(item Item) bool {
 
 		// Case 3: parent and uncle are both red.
 		// Then paint both black and make grandparent red.
-		validateTree(root)
 		grandparent, uncle = getGU(n)
-		validateTree(root)
-
-		nilUncle = (uncle == nil)
 
 		if uncle != nil && uncle.color == red {
 			n.parent.color = black
 			uncle.color = black
 			grandparent.color = red
 			n = grandparent
-			validateTree(root)
-
 			continue
-		}
-		validateTree(root)
-
-		if 102825 == insCount {
-
-			fmt.Printf("top of case 4, nilUncle = %v for n='%#v' and n.item='%#v'\n", nilUncle, n, n.item)
-			fmt.Printf("case 4: n.isRightChild() = %v, n.parent.isRightChild() = %v\n", n.isRightChild(), n.parent.isRightChild())
-			fmt.Printf("case 4: n.isLeftChild() = %v, n.parent.isRightChild() = %v\n", n.isLeftChild(), n.parent.isRightChild())
 		}
 
 		// Case 4: parent is red, uncle is black (1)
 		if n.isRightChild() && n.parent.isLeftChild() {
-			if 102825 == insCount {
-				fmt.Printf("doing case 4: rotateLeft(n.parent)\n")
-			}
 			root.rotateLeft(n.parent)
-			validateTree(root)
 
 			n = n.left
 			grandparent, uncle = getGU(n)
 			//continue
 		} else {
-			if 102825 == insCount {
-				fmt.Printf("on 102825, case 4 else after first test false\n")
-			}
 			if n.isLeftChild() && n.parent.isRightChild() {
-				if 102825 == insCount {
-					fmt.Printf("doing case 4: rotateRight(n.parent)\n")
-				}
 				root.rotateRight(n.parent)
-				validateTree(root)
 				n = n.right
 				grandparent, uncle = getGU(n)
 				//continue
 			}
 		}
-
-		nilUncle = (uncle == nil)
 
 		// Case 5: parent is red, uncle is black (2)
 		n.parent.color = black
@@ -223,17 +185,11 @@ func (root *Tree) Insert(item Item) bool {
 
 		if n.isLeftChild() && n.parent.isLeftChild() {
 			root.rotateRight(grandparent)
-			validateTree(root)
 		} else {
 			if n.isRightChild() && n.parent.isRightChild() {
 				root.rotateLeft(grandparent)
-				validateTree(root)
 			} else {
-				fmt.Printf("n.isRightChild() = %v, n.parent.isRightChild() = %v\n", n.isRightChild(), n.parent.isRightChild())
-				fmt.Printf("n.isLeftChild() = %v, n.parent.isLeftChild() = %v\n", n.isLeftChild(), n.parent.isLeftChild())
-				// n.isRightChild() = false, n.parent.isRightChild() = false
-				root.Dump()
-				panic(fmt.Sprintf("assertion fails: should not get here. validations=%v,  insCount=%v, nilUncle=%v. new item is '%#v', but n has changed so that n.item = '%#v', with uncle on left:'%#v', and with uncle on right:'%#v', and grandparent.item='%#v'", validations, insCount, nilUncle, item, n.item, n.parent.parent.left, n.parent.parent.right, n.parent.parent.item))
+				panic(fmt.Sprintf("assertion fails: should not get here on case 5."))
 			}
 		}
 		break
@@ -867,7 +823,7 @@ func (tr *Tree) Walk(n *node, indent int, lab string) {
 
 var validations int
 
-func validateTree(tr *Tree) {
+func validateTree2(tr *Tree) {
 	if tr == nil {
 		panic("can't validate a nil tree")
 	}
