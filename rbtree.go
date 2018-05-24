@@ -275,6 +275,11 @@ type Iterator struct {
 	node *node
 }
 
+// allow clients to verify iterator is from the right tree.
+func (iter Iterator) Tree() *Tree {
+	return iter.root
+}
+
 func (iter Iterator) Equal(iter2 Iterator) bool {
 	return iter.node == iter2.node
 }
