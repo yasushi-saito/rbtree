@@ -256,6 +256,9 @@ func (root *Tree) DeleteWithKey(key Item) bool {
 //
 // REQUIRES: !iter.Limit() && !iter.NegativeLimit()
 func (root *Tree) DeleteWithIterator(iter Iterator) {
+	if iter.root != root {
+		panic("DeleteWithIterator called with iterator not from this tree.")
+	}
 	fmt.Printf("\nrbtree.DeleteWithIterator called, at insCount=%v, on item='%#v'\n", insCount, iter.Item())
 	doAssert(!iter.Limit() && !iter.NegativeLimit())
 	root.doDelete(iter.node)
@@ -339,6 +342,7 @@ const red = iota
 const black = 1 + iota
 
 type node struct {
+	myTree              *Tree
 	item                Item
 	parent, left, right *node
 	color               int // black or red
@@ -474,7 +478,7 @@ func (root *Tree) maybeSetMaxNode(n *node) {
 // already in the tree. Otherwise return a new (leaf) node.
 func (root *Tree) doInsert(item Item) *node {
 	if root.root == nil {
-		n := &node{item: item}
+		n := &node{item: item, myTree: root}
 		root.root = n
 		root.minNode = n
 		root.maxNode = n
@@ -488,7 +492,7 @@ func (root *Tree) doInsert(item Item) *node {
 			return nil
 		} else if comp < 0 {
 			if parent.left == nil {
-				n := &node{item: item, parent: parent}
+				n := &node{item: item, parent: parent, myTree: root}
 				parent.left = n
 				root.count++
 				root.maybeSetMinNode(n)
@@ -498,7 +502,7 @@ func (root *Tree) doInsert(item Item) *node {
 			}
 		} else {
 			if parent.right == nil {
-				n := &node{item: item, parent: parent}
+				n := &node{item: item, parent: parent, myTree: root}
 				parent.right = n
 				root.count++
 				root.maybeSetMaxNode(n)
@@ -548,6 +552,9 @@ func (root *Tree) findGE(key Item) (*node, bool) {
 
 // Delete N from the tree.
 func (root *Tree) doDelete(n *node) {
+	if n.myTree != nil && n.myTree != root {
+		panic(fmt.Sprintf("delete applied to node that was not from our tree... n has tree: '%s'\n\n while root has tree: '%s'\n\n", n.myTree.DumpAsString(), root.DumpAsString()))
+	}
 	if n.left != nil && n.right != nil {
 		pred := maxPredecessor(n)
 		root.swapNodes(n, pred)
@@ -784,6 +791,17 @@ func (root *Tree) rotateRight(n *node) {
 
 func init() {
 	negativeLimitNode = &node{}
+}
+
+func (root *Tree) DumpAsString() string {
+	s := ""
+	i := 0
+	verb = true
+	for it := root.Min(); it != root.Limit(); it = it.Next() {
+		s += fmt.Sprintf("node %03d: %#v\n", i, it.Item())
+		i++
+	}
+	return s
 }
 
 func (root *Tree) Dump() {
