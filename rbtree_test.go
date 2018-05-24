@@ -69,6 +69,13 @@ func TestDelete(t *testing.T) {
 	testAssert(t, tree.Insert(10), "ins")
 	testAssert(t, tree.DeleteWithKey(10), "del")
 	testAssert(t, tree.Len() == 0, "dellen")
+
+	// delete was deleting after the request if request not found
+	// ensure this does not regress:
+	testAssert(t, tree.Insert(10), "ins")
+	testAssert(t, !tree.DeleteWithKey(9), "del")
+	testAssert(t, tree.Len() == 1, "dellen")
+
 }
 
 func iterToString(i Iterator) string {
