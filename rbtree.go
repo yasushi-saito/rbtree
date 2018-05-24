@@ -259,7 +259,7 @@ func (root *Tree) DeleteWithIterator(iter Iterator) {
 	if iter.root != root {
 		panic("DeleteWithIterator called with iterator not from this tree.")
 	}
-	fmt.Printf("\nrbtree.DeleteWithIterator called, at insCount=%v, on item='%#v'\n", insCount, iter.Item())
+	//fmt.Printf("\nrbtree.DeleteWithIterator called, at insCount=%v, on item='%#v'\n", insCount, iter.Item())
 	doAssert(!iter.Limit() && !iter.NegativeLimit())
 	root.doDelete(iter.node)
 }
